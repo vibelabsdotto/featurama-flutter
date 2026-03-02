@@ -5,16 +5,16 @@ import 'config.dart';
 import 'screens/settings_screen.dart';
 
 void main() {
-  runApp(const FeaturmaTestApp());
+  runApp(const FTFlutterApp());
 }
 
-class FeaturmaTestApp extends StatelessWidget {
-  const FeaturmaTestApp({super.key});
+class FTFlutterApp extends StatelessWidget {
+  const FTFlutterApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Featurama Test',
+      title: 'FT Flutter',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorSchemeSeed: Colors.indigo,
@@ -46,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     if (Config.apiKey.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Featurama Test')),
+        appBar: AppBar(title: const Text('FT Flutter')),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
