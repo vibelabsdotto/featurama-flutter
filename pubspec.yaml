@@ -1,0 +1,27 @@
+name: featurama
+description: Flutter SDK for Featurama Feature Request Management (coming soon for MVP). Collect, organize, and prioritize feature requests from your mobile app users.
+version: 1.0.0
+repository: https://github.com/featurama/featurama-flutter
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+topics:
+  - sdk
+  - api-client
+  - feature-requests
+  - user-feedback
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.4.0
+  shared_preferences: ^2.2.0
+  url_launcher: ^6.2.0
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.25.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.0
