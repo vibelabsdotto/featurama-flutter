@@ -1,0 +1,16 @@
+# pub ignores .gitignore when this file exists. Keep its exclusions here.
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+pubspec.lock
+.hermes/
+.agents/
+skills-lock.json
+
+# The runnable test app and local evidence are not package contents.
+test-app/
+*.log
+.env
+.env.*

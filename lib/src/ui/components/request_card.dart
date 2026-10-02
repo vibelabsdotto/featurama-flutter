@@ -1,4 +1,5 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/cupertino.dart';
+
 import '../../models/feature_request.dart';
 import '../theme/featurama_theme.dart';
 import '../strings/featurama_strings.dart';
@@ -6,12 +7,13 @@ import '../icons/featurama_icons.dart';
 
 class RequestCard extends StatelessWidget {
   const RequestCard({
-    super.key,
     required this.theme,
     required this.strings,
     required this.request,
     required this.isVoting,
     required this.onToggleVote,
+    this.onOpen,
+    super.key,
   });
 
   final FeaturamaTheme theme;
@@ -19,9 +21,36 @@ class RequestCard extends StatelessWidget {
   final FeatureRequest request;
   final bool isVoting;
   final VoidCallback onToggleVote;
+  final VoidCallback? onOpen;
+
+  Widget _badge(String label, {bool pending = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: pending ? theme.secondary : theme.accentLight,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: pending ? theme.textSecondary : theme.accent,
+          decoration: TextDecoration.none,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final enabled = request.isApproved && !isVoting;
+    final voteColor = request.hasVoted ? theme.accentForeground : theme.accent;
+    final voteLabel = request.isApproved
+        ? request.hasVoted
+            ? strings.removeVote
+            : strings.vote
+        : strings.badgePending;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -33,29 +62,40 @@ class RequestCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: isVoting ? null : onToggleVote,
-            child: Container(
+          Semantics(
+            container: true,
+            excludeSemantics: true,
+            onTap: enabled ? onToggleVote : null,
+            label: '$voteLabel: ${request.title}',
+            value: '${request.voteCount}',
+            button: true,
+            enabled: enabled,
+            selected: request.hasVoted,
+            child: CupertinoButton(
+              onPressed: enabled ? onToggleVote : null,
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              decoration: BoxDecoration(
-                color: theme.accentLight,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              constraints: const BoxConstraints(minWidth: 48),
-              child: Column(
-                children: [
-                  ChevronUpIcon(size: 20, color: theme.accent),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${request.voteCount}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: theme.accent,
-                      decoration: TextDecoration.none,
+              color: request.hasVoted ? theme.accent : theme.accentLight,
+              disabledColor: theme.secondary,
+              borderRadius: BorderRadius.circular(8),
+              child: ExcludeSemantics(
+                child: Column(
+                  children: [
+                    ChevronUpIcon(
+                      size: 20,
+                      color: enabled ? voteColor : theme.textSecondary,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      '${request.voteCount}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: enabled ? voteColor : theme.textSecondary,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -73,25 +113,30 @@ class RequestCard extends StatelessWidget {
                     decoration: TextDecoration.none,
                   ),
                 ),
-                if (request.status == FeatureRequestStatus.roadmap) ...[
+                if (!request.isApproved) ...[
                   const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.accentLight,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      strings.badgePlanned,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: theme.accent,
-                        decoration: TextDecoration.none,
+                  _badge(strings.badgePending, pending: true),
+                ] else if (request.status == FeatureRequestStatus.roadmap) ...[
+                  const SizedBox(height: 6),
+                  _badge(strings.badgePlanned),
+                ],
+                if (onOpen != null)
+                  Semantics(
+                    container: true,
+                    excludeSemantics: true,
+                    button: true,
+                    label: '${strings.viewDetails}: ${request.title}',
+                    value: '${request.commentCount} ${strings.comments}',
+                    onTap: onOpen,
+                    child: CupertinoButton(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      onPressed: onOpen,
+                      child: Text(
+                        '${strings.viewDetails}: ${request.commentCount} ${strings.comments}',
+                        style: TextStyle(color: theme.accent, fontSize: 14),
                       ),
                     ),
                   ),
-                ],
                 if (request.description.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(

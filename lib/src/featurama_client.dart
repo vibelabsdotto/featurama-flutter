@@ -1,7 +1,10 @@
 import 'package:dio/dio.dart';
+import 'package:dio_compatibility_layer/dio_compatibility_layer.dart';
+import 'package:http/http.dart' as http;
 
 import 'exceptions/featurama_exception.dart';
 import 'models/create_request_dto.dart';
+import 'models/comment.dart';
 import 'models/feature_request.dart';
 import 'models/paginated_response.dart';
 import 'models/project_config.dart';
@@ -15,8 +18,7 @@ import 'models/update_request_dto.dart';
 /// Example:
 /// ```dart
 /// final client = FeaturamaClient(
-///   apiKey: 'fm_live_your_api_key_here',
-///   baseUrl: 'https://your-deployment.convex.site',
+///   apiKey: 'fm_li...re',
 /// );
 ///
 /// // Get feature requests
@@ -33,29 +35,112 @@ import 'models/update_request_dto.dart';
 /// );
 /// ```
 class FeaturamaClient {
+  /// Current hosted API origin. Keys are specific to their issuing backend.
+  static const defaultBaseUrl = 'https://newapi.featurama.app';
+
   /// Creates a new [FeaturamaClient].
   ///
-  /// The [apiKey] is required and must be a valid Featurama API key
-  /// (format: `fm_live_xxxxxxxxxxxx`).
+  /// The [apiKey] must be a nonempty, whitespace-free project SDK key.
+  /// No prefix or length is imposed; the issuing backend validates the key.
   ///
-  /// The [baseUrl] should be your Convex deployment URL
-  /// (e.g., `https://your-deployment.convex.site`).
+  /// The [baseUrl] is an HTTPS backend origin without an API path, credentials,
+  /// query or fragment. HTTP is allowed only for loopback development. For a
+  /// legacy key, explicitly use `https://api.featurama.app`. Changing the origin
+  /// does not migrate keys or project data. Invalid input throws [ArgumentError]
+  /// without including the supplied value.
   ///
-  /// An optional [dio] instance can be provided for custom configuration
-  /// or testing.
+  /// An optional [dio] remains caller-owned and is never reconfigured. Its
+  /// adapters and interceptors must honor `followRedirects: false`, must not
+  /// retarget requests and must not log the `X-Api-Key` header. Dio's default
+  /// web adapter cannot block redirects; use a Fetch-backed adapter instead.
   FeaturamaClient({
     required String apiKey,
-    required String baseUrl,
+    String baseUrl = defaultBaseUrl,
     Dio? dio,
-  }) : _dio = dio ?? Dio() {
-    _dio.options.baseUrl = baseUrl;
-    _dio.options.headers['X-Api-Key'] = apiKey;
-    _dio.options.headers['Content-Type'] = 'application/json';
-    _dio.options.connectTimeout = const Duration(seconds: 30);
-    _dio.options.receiveTimeout = const Duration(seconds: 30);
+  })  : _apiKey = validateApiKey(apiKey),
+        _baseUrl = validateBaseUrl(baseUrl),
+        _dio = dio ?? _createDio(),
+        _ownsDio = dio == null;
+
+  /// Validates a project key without changing it or including it in errors.
+  static String validateApiKey(String apiKey) {
+    if (apiKey.isEmpty ||
+        apiKey.codeUnits.any((code) => code < 0x21 || code > 0x7e)) {
+      throw ArgumentError(
+        'apiKey must be a nonempty project SDK key without whitespace or '
+        'control characters. Copy it from the selected backend.',
+      );
+    }
+    return apiKey;
+  }
+
+  /// Validates a backend origin, accepting an optional trailing slash.
+  static String validateBaseUrl(String baseUrl) {
+    final uri = Uri.tryParse(baseUrl);
+    if (!RegExp(r'^https?://[^/?#\\%@]+/?$').hasMatch(baseUrl) ||
+        baseUrl.codeUnits.any((code) => code <= 0x20 || code >= 0x7f) ||
+        uri == null ||
+        !uri.hasAuthority ||
+        baseUrl.endsWith(':') ||
+        baseUrl.endsWith(':/') ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        uri.hasFragment ||
+        (uri.path.isNotEmpty && uri.path != '/') ||
+        uri.port < 1 ||
+        uri.port > 65535) {
+      throw ArgumentError(
+        'baseUrl must be a backend origin such as https://newapi.featurama.app, '
+        'without credentials, an API path, query or fragment.',
+      );
+    }
+    if (uri.scheme == 'http' &&
+        uri.host != 'localhost' &&
+        uri.host != '127.0.0.1' &&
+        uri.host != '::1') {
+      throw ArgumentError(
+        'baseUrl must use HTTPS. HTTP is allowed only for localhost, '
+        '127.0.0.1 or [::1] development servers.',
+      );
+    }
+    return uri.origin;
+  }
+
+  static Dio _createDio() {
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+    ));
+    // XMLHttpRequest ignores followRedirects. http >=1.3 uses Fetch with
+    // redirect: 'error', so the browser never forwards the key on redirects.
+    if (const bool.fromEnvironment('dart.library.js_interop')) {
+      dio.httpClientAdapter = ConversionLayerAdapter(http.Client());
+    }
+    return dio;
   }
 
   final Dio _dio;
+  final bool _ownsDio;
+  final String _apiKey;
+  final String _baseUrl;
+  bool _closed = false;
+
+  // Never mutate an injected transport: multiple projects may share it.
+  String _url(String path) {
+    if (_closed) throw StateError('FeaturamaClient is closed');
+    return '$_baseUrl$path';
+  }
+
+  Options get _options => Options(
+        headers: {'X-Api-Key': _apiKey, 'Content-Type': 'application/json'},
+        responseType: ResponseType.json,
+        // Keep SDK status handling reliable even with custom Dio defaults.
+        validateStatus: (status) =>
+            status != null && status >= 200 && status < 300,
+        followRedirects: false,
+        maxRedirects: 0,
+      );
 
   /// Retrieves a paginated list of feature requests.
   ///
@@ -67,14 +152,18 @@ class FeaturamaClient {
     int page = 1,
     int pageSize = 20,
     String? filter,
+    String? submitterIdentifier,
   }) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
-        '/api/public/requests',
+        _url('/api/public/requests'),
+        options: _options,
         queryParameters: {
           'page': page,
           'pageSize': pageSize,
           if (filter != null) 'filter': filter,
+          if (submitterIdentifier != null)
+            'submitterIdentifier': submitterIdentifier,
         },
       );
 
@@ -83,7 +172,7 @@ class FeaturamaClient {
         FeatureRequest.fromJson,
       );
     } on DioException catch (e) {
-      throw FeaturamException.fromDioError(e);
+      throw FeaturamException.fromDioError(e, baseUrl: _baseUrl);
     }
   }
 
@@ -98,13 +187,14 @@ class FeaturamaClient {
   Future<FeatureRequest> createRequest(CreateRequestDto dto) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/public/requests',
+        _url('/api/public/requests'),
+        options: _options,
         data: dto.toJson(),
       );
 
       return FeatureRequest.fromJson(response.data!);
     } on DioException catch (e) {
-      throw FeaturamException.fromDioError(e);
+      throw FeaturamException.fromDioError(e, baseUrl: _baseUrl);
     }
   }
 
@@ -118,7 +208,7 @@ class FeaturamaClient {
   /// Returns the updated [FeatureRequest].
   ///
   /// Throws [NotFoundException] if the request doesn't exist.
-  /// Throws [UnauthorizedException] if the submitter doesn't match.
+  /// Throws [ForbiddenException] if the submitter does not match.
   /// Throws [FeaturamException] for other errors.
   Future<FeatureRequest> updateRequest(
     String id,
@@ -127,7 +217,8 @@ class FeaturamaClient {
   ) async {
     try {
       final response = await _dio.put<Map<String, dynamic>>(
-        '/api/public/requests/$id',
+        _url('/api/public/requests/${Uri.encodeComponent(id)}'),
+        options: _options,
         data: dto.toJson(),
         queryParameters: {
           'submitterIdentifier': submitterIdentifier,
@@ -136,7 +227,7 @@ class FeaturamaClient {
 
       return FeatureRequest.fromJson(response.data!);
     } on DioException catch (e) {
-      throw FeaturamException.fromDioError(e);
+      throw FeaturamException.fromDioError(e, baseUrl: _baseUrl);
     }
   }
 
@@ -153,7 +244,8 @@ class FeaturamaClient {
   Future<FeatureRequest> vote(String requestId, String voterIdentifier) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/public/requests/$requestId/vote',
+        _url('/api/public/requests/${Uri.encodeComponent(requestId)}/vote'),
+        options: _options,
         data: {
           'voterIdentifier': voterIdentifier,
         },
@@ -161,7 +253,7 @@ class FeaturamaClient {
 
       return FeatureRequest.fromJson(response.data!);
     } on DioException catch (e) {
-      throw FeaturamException.fromDioError(e);
+      throw FeaturamException.fromDioError(e, baseUrl: _baseUrl);
     }
   }
 
@@ -182,7 +274,8 @@ class FeaturamaClient {
   ) async {
     try {
       final response = await _dio.delete<Map<String, dynamic>>(
-        '/api/public/requests/$requestId/vote',
+        _url('/api/public/requests/${Uri.encodeComponent(requestId)}/vote'),
+        options: _options,
         data: {
           'voterIdentifier': voterIdentifier,
         },
@@ -190,7 +283,7 @@ class FeaturamaClient {
 
       return FeatureRequest.fromJson(response.data!);
     } on DioException catch (e) {
-      throw FeaturamException.fromDioError(e);
+      throw FeaturamException.fromDioError(e, baseUrl: _baseUrl);
     }
   }
 
@@ -198,11 +291,12 @@ class FeaturamaClient {
   ///
   /// If the user has not voted, adds a vote. If already voted (409 Conflict),
   /// removes the vote instead.
-  Future<FeatureRequest> toggleVote(String requestId, String voterIdentifier) async {
+  Future<FeatureRequest> toggleVote(
+      String requestId, String voterIdentifier) async {
     try {
       return await vote(requestId, voterIdentifier);
     } on ConflictException {
-      return await removeVote(requestId, voterIdentifier);
+      return removeVote(requestId, voterIdentifier);
     }
   }
 
@@ -214,17 +308,109 @@ class FeaturamaClient {
   Future<ProjectConfig> getConfig() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
-        '/api/public/config',
+        _url('/api/public/config'),
+        options: _options,
       );
 
       return ProjectConfig.fromJson(response.data!);
     } on DioException catch (e) {
-      throw FeaturamException.fromDioError(e);
+      throw FeaturamException.fromDioError(e, baseUrl: _baseUrl);
     }
   }
 
-  /// Closes the client and releases resources.
+  /// Lists discussion comments in chronological order.
+  Future<List<Comment>> getComments(String requestId) async {
+    try {
+      final response = await _dio.get<List<dynamic>>(
+        _url('/api/public/requests/${Uri.encodeComponent(requestId)}/comments'),
+        options: _options,
+      );
+      return response.data!
+          .map((item) => Comment.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw FeaturamException.fromDioError(e, baseUrl: _baseUrl);
+    }
+  }
+
+  /// Adds a comment. Pending requests accept comments only from their submitter.
+  Future<Comment> addComment(
+    String requestId, {
+    required String content,
+    required String authorIdentifier,
+    String? authorName,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _url('/api/public/requests/${Uri.encodeComponent(requestId)}/comments'),
+        options: _options,
+        data: {
+          'content': content,
+          'authorIdentifier': authorIdentifier,
+          if (authorName != null) 'authorName': authorName,
+        },
+      );
+      return Comment.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw FeaturamException.fromDioError(e, baseUrl: _baseUrl);
+    }
+  }
+
+  /// Adds a vote to a comment; duplicate votes throw [ConflictException].
+  Future<Comment> voteComment(
+    String requestId,
+    String commentId,
+    String voterIdentifier,
+  ) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _url(
+            '/api/public/requests/${Uri.encodeComponent(requestId)}/comments/${Uri.encodeComponent(commentId)}/vote'),
+        options: _options,
+        data: {'voterIdentifier': voterIdentifier},
+      );
+      return Comment.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw FeaturamException.fromDioError(e, baseUrl: _baseUrl);
+    }
+  }
+
+  /// Removes a comment vote; missing votes throw [NotFoundException].
+  Future<Comment> removeCommentVote(
+    String requestId,
+    String commentId,
+    String voterIdentifier,
+  ) async {
+    try {
+      final response = await _dio.delete<Map<String, dynamic>>(
+        _url(
+            '/api/public/requests/${Uri.encodeComponent(requestId)}/comments/${Uri.encodeComponent(commentId)}/vote'),
+        options: _options,
+        data: {'voterIdentifier': voterIdentifier},
+      );
+      return Comment.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw FeaturamException.fromDioError(e, baseUrl: _baseUrl);
+    }
+  }
+
+  /// Adds a comment vote, or removes it when the API reports a duplicate.
+  Future<Comment> toggleCommentVote(
+    String requestId,
+    String commentId,
+    String voterIdentifier,
+  ) async {
+    try {
+      return await voteComment(requestId, commentId, voterIdentifier);
+    } on ConflictException {
+      return removeCommentVote(requestId, commentId, voterIdentifier);
+    }
+  }
+
+  /// Closes this client. An injected Dio remains owned by the caller.
   void close() {
-    _dio.close();
+    if (_closed) return;
+    _closed = true;
+    if (_ownsDio) _dio.close();
   }
 }

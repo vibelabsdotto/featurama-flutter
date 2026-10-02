@@ -16,16 +16,31 @@ void main() {
     when(mockDio.options).thenReturn(BaseOptions());
     client = FeaturamaClient(
       apiKey: 'fm_live_test_key',
-      baseUrl: 'https://test-deployment.convex.site',
+      baseUrl: 'https://api.example.test',
       dio: mockDio,
     );
   });
 
   group('FeaturamaClient', () {
+    test('preserves injected transport defaults', () {
+      final options = BaseOptions();
+      when(mockDio.options).thenReturn(options);
+
+      FeaturamaClient(
+        apiKey: 'fm_live_test_key',
+        dio: mockDio,
+      );
+
+      expect(options.baseUrl, isEmpty);
+      expect(options.headers.containsKey('X-Api-Key'), isFalse);
+      expect(FeaturamaClient.defaultBaseUrl, 'https://newapi.featurama.app');
+    });
+
     group('getRequests', () {
       test('returns paginated response on success', () async {
         when(mockDio.get<Map<String, dynamic>>(
-          '/api/public/requests',
+          'https://api.example.test/api/public/requests',
+          options: anyNamed('options'),
           queryParameters: anyNamed('queryParameters'),
         )).thenAnswer((_) async => Response(
               data: {
@@ -47,7 +62,8 @@ void main() {
                 'pageSize': 20,
               },
               statusCode: 200,
-              requestOptions: RequestOptions(path: '/api/public/requests'),
+              requestOptions: RequestOptions(
+                  path: 'https://api.example.test/api/public/requests'),
             ));
 
         final response = await client.getRequests();
@@ -60,16 +76,19 @@ void main() {
 
       test('throws UnauthorizedException on 401', () async {
         when(mockDio.get<Map<String, dynamic>>(
-          '/api/public/requests',
+          'https://api.example.test/api/public/requests',
+          options: anyNamed('options'),
           queryParameters: anyNamed('queryParameters'),
         )).thenThrow(DioException(
           type: DioExceptionType.badResponse,
           response: Response(
             statusCode: 401,
             data: {'message': 'Invalid API key'},
-            requestOptions: RequestOptions(path: '/api/public/requests'),
+            requestOptions: RequestOptions(
+                path: 'https://api.example.test/api/public/requests'),
           ),
-          requestOptions: RequestOptions(path: '/api/public/requests'),
+          requestOptions: RequestOptions(
+              path: 'https://api.example.test/api/public/requests'),
         ));
 
         expect(
@@ -82,8 +101,9 @@ void main() {
     group('createRequest', () {
       test('creates request and returns FeatureRequest', () async {
         when(mockDio.post<Map<String, dynamic>>(
-          '/api/public/requests',
+          'https://api.example.test/api/public/requests',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
               data: {
                 'id': '456',
@@ -97,7 +117,8 @@ void main() {
                 'createdAt': '2024-01-15T11:00:00Z',
               },
               statusCode: 201,
-              requestOptions: RequestOptions(path: '/api/public/requests'),
+              requestOptions: RequestOptions(
+                  path: 'https://api.example.test/api/public/requests'),
             ));
 
         final request = await client.createRequest(
@@ -117,8 +138,9 @@ void main() {
     group('updateRequest', () {
       test('updates request and returns FeatureRequest', () async {
         when(mockDio.put<Map<String, dynamic>>(
-          '/api/public/requests/123',
+          'https://api.example.test/api/public/requests/123',
           data: anyNamed('data'),
+          options: anyNamed('options'),
           queryParameters: anyNamed('queryParameters'),
         )).thenAnswer((_) async => Response(
               data: {
@@ -133,7 +155,8 @@ void main() {
                 'createdAt': '2024-01-15T10:00:00Z',
               },
               statusCode: 200,
-              requestOptions: RequestOptions(path: '/api/public/requests/123'),
+              requestOptions: RequestOptions(
+                  path: 'https://api.example.test/api/public/requests/123'),
             ));
 
         final request = await client.updateRequest(
@@ -151,17 +174,20 @@ void main() {
 
       test('throws NotFoundException on 404', () async {
         when(mockDio.put<Map<String, dynamic>>(
-          '/api/public/requests/invalid',
+          'https://api.example.test/api/public/requests/invalid',
           data: anyNamed('data'),
+          options: anyNamed('options'),
           queryParameters: anyNamed('queryParameters'),
         )).thenThrow(DioException(
           type: DioExceptionType.badResponse,
           response: Response(
             statusCode: 404,
             data: {'message': 'Request not found'},
-            requestOptions: RequestOptions(path: '/api/public/requests/invalid'),
+            requestOptions: RequestOptions(
+                path: 'https://api.example.test/api/public/requests/invalid'),
           ),
-          requestOptions: RequestOptions(path: '/api/public/requests/invalid'),
+          requestOptions: RequestOptions(
+              path: 'https://api.example.test/api/public/requests/invalid'),
         ));
 
         expect(
@@ -178,8 +204,9 @@ void main() {
     group('vote', () {
       test('adds vote and returns updated FeatureRequest', () async {
         when(mockDio.post<Map<String, dynamic>>(
-          '/api/public/requests/123/vote',
+          'https://api.example.test/api/public/requests/123/vote',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
               data: {
                 'id': '123',
@@ -193,7 +220,9 @@ void main() {
                 'createdAt': '2024-01-15T10:00:00Z',
               },
               statusCode: 200,
-              requestOptions: RequestOptions(path: '/api/public/requests/123/vote'),
+              requestOptions: RequestOptions(
+                  path:
+                      'https://api.example.test/api/public/requests/123/vote'),
             ));
 
         final request = await client.vote('123', 'user_3');
@@ -203,16 +232,19 @@ void main() {
 
       test('throws ConflictException on duplicate vote', () async {
         when(mockDio.post<Map<String, dynamic>>(
-          '/api/public/requests/123/vote',
+          'https://api.example.test/api/public/requests/123/vote',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenThrow(DioException(
           type: DioExceptionType.badResponse,
           response: Response(
             statusCode: 409,
             data: {'message': 'Already voted'},
-            requestOptions: RequestOptions(path: '/api/public/requests/123/vote'),
+            requestOptions: RequestOptions(
+                path: 'https://api.example.test/api/public/requests/123/vote'),
           ),
-          requestOptions: RequestOptions(path: '/api/public/requests/123/vote'),
+          requestOptions: RequestOptions(
+              path: 'https://api.example.test/api/public/requests/123/vote'),
         ));
 
         expect(
@@ -225,8 +257,9 @@ void main() {
     group('removeVote', () {
       test('removes vote and returns updated FeatureRequest', () async {
         when(mockDio.delete<Map<String, dynamic>>(
-          '/api/public/requests/123/vote',
+          'https://api.example.test/api/public/requests/123/vote',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
               data: {
                 'id': '123',
@@ -240,7 +273,9 @@ void main() {
                 'createdAt': '2024-01-15T10:00:00Z',
               },
               statusCode: 200,
-              requestOptions: RequestOptions(path: '/api/public/requests/123/vote'),
+              requestOptions: RequestOptions(
+                  path:
+                      'https://api.example.test/api/public/requests/123/vote'),
             ));
 
         final request = await client.removeVote('123', 'user_3');
@@ -296,8 +331,8 @@ void main() {
 
   group('PaginatedResponse', () {
     test('calculates totalPages correctly', () {
-      final response = PaginatedResponse<String>(
-        items: const ['a', 'b', 'c'],
+      const response = PaginatedResponse<String>(
+        items: ['a', 'b', 'c'],
         totalCount: 25,
         page: 1,
         pageSize: 10,
@@ -309,8 +344,8 @@ void main() {
     });
 
     test('hasNextPage is false on last page', () {
-      final response = PaginatedResponse<String>(
-        items: const ['a', 'b'],
+      const response = PaginatedResponse<String>(
+        items: ['a', 'b'],
         totalCount: 12,
         page: 2,
         pageSize: 10,
@@ -350,9 +385,12 @@ void main() {
         requestOptions: RequestOptions(path: '/test'),
       );
 
-      expect(FeaturamException.fromDioError(error401), isA<UnauthorizedException>());
-      expect(FeaturamException.fromDioError(error404), isA<NotFoundException>());
-      expect(FeaturamException.fromDioError(error409), isA<ConflictException>());
+      expect(FeaturamException.fromDioError(error401),
+          isA<UnauthorizedException>());
+      expect(
+          FeaturamException.fromDioError(error404), isA<NotFoundException>());
+      expect(
+          FeaturamException.fromDioError(error409), isA<ConflictException>());
     });
   });
 }

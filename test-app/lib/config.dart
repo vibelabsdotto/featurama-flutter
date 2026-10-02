@@ -1,8 +1,12 @@
+import 'package:featurama/client.dart';
+
 /// Configuration for the Featurama test app.
-///
-/// Holds mutable static values for the API key and base URL
-/// that can be updated from the settings screen.
 class Config {
-  static String apiKey = '';
-  static String baseUrl = 'http://localhost:5001';
+  // Keep each project SDK key paired with the backend that issued it.
+  // Build-time defines are part of the app bundle, not secret storage.
+  static String apiKey = const String.fromEnvironment('FEATURAMA_API_KEY');
+  static String baseUrl = const String.fromEnvironment(
+    'FEATURAMA_BASE_URL',
+    defaultValue: FeaturamaClient.defaultBaseUrl,
+  );
 }

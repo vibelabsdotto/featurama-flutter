@@ -64,6 +64,11 @@ class FeatureRequest {
     required this.voteCount,
     required this.submitterIdentifier,
     required this.createdAt,
+    this.commentCount = 0,
+    this.isApproved = true,
+    this.hasVoted = false,
+    this.submitterEmail,
+    this.deviceInfo,
   });
 
   /// Creates a [FeatureRequest] from a JSON map.
@@ -78,6 +83,11 @@ class FeatureRequest {
       voteCount: json['voteCount'] as int,
       submitterIdentifier: json['submitterIdentifier'] as String? ?? '',
       createdAt: DateTime.parse(json['createdAt'] as String),
+      commentCount: json['commentCount'] as int? ?? 0,
+      isApproved: json['isApproved'] as bool? ?? true,
+      hasVoted: json['hasVoted'] as bool? ?? false,
+      submitterEmail: json['submitterEmail'] as String?,
+      deviceInfo: json['deviceInfo'] as Map<String, dynamic>?,
     );
   }
 
@@ -108,6 +118,19 @@ class FeatureRequest {
   /// Timestamp when this request was created.
   final DateTime createdAt;
 
+  /// Number of comments attached to this request.
+  final int commentCount;
+
+  /// Whether the owner approved this request for public viewing and voting.
+  final bool isApproved;
+
+  /// Viewer vote state, populated by listing with a submitter identifier.
+  final bool hasVoted;
+
+  /// Returned only when the backend permits contact/device metadata.
+  final String? submitterEmail;
+  final Map<String, dynamic>? deviceInfo;
+
   /// Converts this [FeatureRequest] to a JSON map.
   Map<String, dynamic> toJson() {
     return {
@@ -120,6 +143,11 @@ class FeatureRequest {
       'voteCount': voteCount,
       'submitterIdentifier': submitterIdentifier,
       'createdAt': createdAt.toIso8601String(),
+      'commentCount': commentCount,
+      'isApproved': isApproved,
+      'hasVoted': hasVoted,
+      if (submitterEmail != null) 'submitterEmail': submitterEmail,
+      if (deviceInfo != null) 'deviceInfo': deviceInfo,
     };
   }
 

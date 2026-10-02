@@ -1,21 +1,22 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/cupertino.dart';
+
 import '../theme/featurama_theme.dart';
 import '../icons/featurama_icons.dart';
 import '../strings/featurama_strings.dart';
 
 class Header extends StatelessWidget {
   const Header({
-    super.key,
     required this.theme,
     required this.strings,
-    this.onClose,
     required this.onAdd,
+    super.key,
+    this.onClose,
   });
 
   final FeaturamaTheme theme;
   final FeaturamaStrings strings;
   final VoidCallback? onClose;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -24,20 +25,21 @@ class Header extends StatelessWidget {
       child: Row(
         children: [
           if (onClose != null)
-            GestureDetector(
-              onTap: onClose,
-              child: SizedBox(
-                width: 40,
-                height: 40,
-                child: Center(child: CloseIcon(size: 24, color: theme.text)),
+            Semantics(
+              label: strings.close,
+              child: CupertinoButton(
+                padding: const EdgeInsets.all(8),
+                onPressed: onClose,
+                child: CloseIcon(size: 24, color: theme.text),
               ),
             )
           else
-            const SizedBox(width: 40),
+            const SizedBox(width: 44),
           Expanded(
             child: Center(
               child: Text(
                 strings.title,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -47,12 +49,15 @@ class Header extends StatelessWidget {
               ),
             ),
           ),
-          GestureDetector(
-            onTap: onAdd,
-            child: SizedBox(
-              width: 40,
-              height: 40,
-              child: Center(child: PlusIcon(size: 24, color: theme.accent)),
+          Semantics(
+            label: strings.addRequest,
+            child: CupertinoButton(
+              padding: const EdgeInsets.all(8),
+              onPressed: onAdd,
+              child: PlusIcon(
+                size: 24,
+                color: onAdd == null ? theme.textSecondary : theme.accent,
+              ),
             ),
           ),
         ],

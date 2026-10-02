@@ -1,8 +1,7 @@
-import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 
 class CloseIcon extends StatelessWidget {
-  const CloseIcon({super.key, required this.size, required this.color});
+  const CloseIcon({required this.size, required this.color, super.key});
   final double size;
   final Color color;
 
@@ -23,8 +22,10 @@ class _ClosePainter extends CustomPainter {
       ..strokeWidth = size.width * 0.12
       ..strokeCap = StrokeCap.round;
     final m = size.width * 0.2;
-    canvas.drawLine(Offset(m, m), Offset(size.width - m, size.height - m), paint);
-    canvas.drawLine(Offset(size.width - m, m), Offset(m, size.height - m), paint);
+    canvas.drawLine(
+        Offset(m, m), Offset(size.width - m, size.height - m), paint);
+    canvas.drawLine(
+        Offset(size.width - m, m), Offset(m, size.height - m), paint);
   }
 
   @override
@@ -32,7 +33,7 @@ class _ClosePainter extends CustomPainter {
 }
 
 class PlusIcon extends StatelessWidget {
-  const PlusIcon({super.key, required this.size, required this.color});
+  const PlusIcon({required this.size, required this.color, super.key});
   final double size;
   final Color color;
 
@@ -63,13 +64,14 @@ class _PlusPainter extends CustomPainter {
 }
 
 class ChevronUpIcon extends StatelessWidget {
-  const ChevronUpIcon({super.key, required this.size, required this.color});
+  const ChevronUpIcon({required this.size, required this.color, super.key});
   final double size;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(size: Size(size, size), painter: _ChevronUpPainter(color));
+    return CustomPaint(
+        size: Size(size, size), painter: _ChevronUpPainter(color));
   }
 }
 
@@ -134,13 +136,14 @@ Path _parseSvgPath(String d) {
 }
 
 class FeaturamaLogoIcon extends StatelessWidget {
-  const FeaturamaLogoIcon({super.key, required this.size, required this.color});
+  const FeaturamaLogoIcon({required this.size, required this.color, super.key});
   final double size;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(size: Size(size, size), painter: _FeaturamaLogoPainter(color));
+    return CustomPaint(
+        size: Size(size, size), painter: _FeaturamaLogoPainter(color));
   }
 }
 
@@ -165,7 +168,8 @@ class _FeaturamaLogoPainter extends CustomPainter {
     canvas.drawPath(_paths[0], Paint()..color = color); // Back rect
     canvas.drawPath(_paths[1], Paint()..color = color); // Middle rect
     canvas.drawPath(_paths[2], Paint()..color = color); // Front rect
-    canvas.drawPath(_paths[3], Paint()..color = const Color(0xFFFDFEFB)); // Checkmark
+    canvas.drawPath(
+        _paths[3], Paint()..color = const Color(0xFFFDFEFB)); // Checkmark
 
     canvas.restore();
   }
@@ -175,7 +179,7 @@ class _FeaturamaLogoPainter extends CustomPainter {
 }
 
 class SendIcon extends StatelessWidget {
-  const SendIcon({super.key, required this.size, required this.color});
+  const SendIcon({required this.size, required this.color, super.key});
   final double size;
   final Color color;
 

@@ -6,7 +6,8 @@ class ProjectConfig {
 
   factory ProjectConfig.fromJson(Map<String, dynamic> json) {
     return ProjectConfig(
-      branding: BrandingConfig.fromJson(json['branding'] as Map<String, dynamic>),
+      branding:
+          BrandingConfig.fromJson(json['branding'] as Map<String, dynamic>),
       emailCollection: json['emailCollection'] as String? ?? 'none',
     );
   }

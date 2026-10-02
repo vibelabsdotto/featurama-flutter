@@ -1,13 +1,28 @@
 // ignore_for_file: avoid_print
 
-import 'package:featurama/featurama.dart';
+import 'dart:io';
+import 'package:featurama/client.dart';
 
-Future<void> main() async {
-  // Initialize the client with your API key and Convex deployment URL
-  final client = FeaturamaClient(
-    apiKey: 'fm_live_your_api_key_here',
-    baseUrl: 'https://your-deployment.convex.site',
-  );
+Future<void> main(List<String> args) async {
+  if ((Platform.environment['FEATURAMA_API_KEY'] ?? '').isEmpty) {
+    stderr.writeln('Set FEATURAMA_API_KEY before running the example.');
+    exitCode = 64;
+    return;
+  }
+  // Keep the key paired with its issuing backend. For a legacy project, set
+  // FEATURAMA_BASE_URL=https://api.featurama.app explicitly.
+  late final FeaturamaClient client;
+  try {
+    client = FeaturamaClient(
+      apiKey: Platform.environment['FEATURAMA_API_KEY'] ?? '',
+      baseUrl: Platform.environment['FEATURAMA_BASE_URL'] ??
+          FeaturamaClient.defaultBaseUrl,
+    );
+  } on ArgumentError catch (error) {
+    stderr.writeln('Configuration error: ${error.message}');
+    exitCode = 64;
+    return;
+  }
 
   try {
     // Example 1: List feature requests with pagination
@@ -22,20 +37,31 @@ Future<void> main() async {
       print('  - ${request.title} (${request.voteCount} votes)');
     }
 
+    // Creation is opt-in. Read-only listing is safe to run repeatedly.
+    if (!args.contains('--create')) return;
+
     // Example 2: Create a new feature request
     print('\n--- Creating a feature request ---');
     final newRequest = await client.createRequest(
-      const CreateRequestDto(
+      CreateRequestDto(
         title: 'Dark mode support',
         description: 'Please add a dark mode option to reduce eye strain '
             'when using the app at night.',
         submitterIdentifier: 'user_123',
+        email: Platform.environment['FEATURAMA_EMAIL'],
       ),
     );
 
     print('Created request: ${newRequest.title}');
     print('Request ID: ${newRequest.id}');
     print('Status: ${newRequest.status.value}');
+
+    // New requests require owner approval before voting.
+    if (!newRequest.isApproved) {
+      print(
+          'Pending approval. View it by listing with its submitter identifier.');
+      return;
+    }
 
     // Example 3: Vote on a feature request
     print('\n--- Voting on a request ---');
@@ -61,8 +87,9 @@ Future<void> main() async {
     final unvotedRequest = await client.removeVote(newRequest.id, 'user_456');
     print('Vote count after removing vote: ${unvotedRequest.voteCount}');
   } on UnauthorizedException catch (e) {
-    // Handle invalid API key
-    print('Authentication error: ${e.message}');
+    // Check the key/origin pair. Never try the same key on another host.
+    stderr.writeln('Authentication error: ${e.message}');
+    exitCode = 1;
   } on ConflictException catch (e) {
     // Handle duplicate vote
     print('Conflict error: ${e.message}');
@@ -99,7 +126,11 @@ class FeatureRequestManager {
 
   /// Load feature requests for display in a list.
   Future<List<FeatureRequest>> loadRequests({int page = 1}) async {
-    final response = await _client.getRequests(page: page, pageSize: 20);
+    final response = await _client.getRequests(
+      page: page,
+      pageSize: 20,
+      submitterIdentifier: _userId,
+    );
     return response.items;
   }
 

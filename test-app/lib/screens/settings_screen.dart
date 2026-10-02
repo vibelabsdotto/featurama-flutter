@@ -1,3 +1,4 @@
+import 'package:featurama/client.dart';
 import 'package:flutter/material.dart';
 
 import '../config.dart';
@@ -28,29 +29,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _save() {
-    final apiKey = _apiKeyController.text.trim();
-    final baseUrl = _baseUrlController.text.trim();
+    final apiKey = _apiKeyController.text;
+    final baseUrl = _baseUrlController.text;
 
-    if (apiKey.isEmpty) {
+    try {
+      FeaturamaClient.validateApiKey(apiKey);
+      FeaturamaClient.validateBaseUrl(baseUrl);
+    } on ArgumentError catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('API Key cannot be empty')),
-      );
-      return;
-    }
-
-    if (baseUrl.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Base URL cannot be empty')),
+        SnackBar(content: Text(error.message.toString())),
       );
       return;
     }
 
     Config.apiKey = apiKey;
-    Config.baseUrl = baseUrl;
+    Config.baseUrl = FeaturamaClient.validateBaseUrl(baseUrl);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settings saved')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Settings saved')));
 
     Navigator.of(context).pop(true);
   }
@@ -58,19 +54,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
-      body: Padding(
+      appBar: AppBar(title: const Text('Settings')),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextFormField(
               controller: _apiKeyController,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'API Key',
-                hintText: 'fm_live_xxxxxxxxxxxx',
+                hintText: 'Project SDK key from this backend',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.key),
               ),
@@ -79,12 +77,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             TextFormField(
               controller: _baseUrlController,
               decoration: const InputDecoration(
-                labelText: 'Base URL',
-                hintText: 'http://localhost:5001',
+                labelText: 'Backend origin',
+                hintText: FeaturamaClient.defaultBaseUrl,
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.link),
               ),
               keyboardType: TextInputType.url,
+              autocorrect: false,
+              enableSuggestions: false,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Use a project SDK key issued by the selected backend. '
+              'The default is https://newapi.featurama.app. Legacy keys need '
+              'https://api.featurama.app explicitly. Changing this URL does not '
+              'migrate your key or project. Do not enter dashboard credentials. '
+              'Enter only the origin, without /api or /api/public. '
+              'HTTP is allowed only for loopback development.',
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
