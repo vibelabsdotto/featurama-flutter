@@ -63,6 +63,12 @@ are included. Override `FeaturamaStrings` to localize the controls and messages.
 Comment vote responses do not expose viewer vote state, so the control says
 **Toggle comment vote** rather than claiming an unknown selection.
 
+### Store review links
+
+`getConfig().reviewLinks` exposes optional `appStoreUrl` and `playStoreUrl`.
+Older servers omit the field and you get an empty `ReviewLinksConfig`.
+`FeaturamaScreen` does not show these links.
+
 The existing test app now resolves this checkout directly:
 
 ```sh
@@ -102,7 +108,7 @@ await client.toggleCommentVote(requestId, comment.id, currentUserId);
 await client.toggleVote(requestId, currentUserId);
 ```
 
-`getConfig` returns exported `ProjectConfig` and `BrandingConfig` models.
+`getConfig` returns exported `ProjectConfig`, `BrandingConfig` and `ReviewLinksConfig` models.
 `ValidationException` maps HTTP 400, `ForbiddenException` maps 403, and the
 existing 401/404/409 types are unchanged. `FeaturamaException` is an alias for
 legacy `FeaturamException`. Other HTTP and transport failures retain the base

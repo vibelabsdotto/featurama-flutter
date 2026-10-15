@@ -37,6 +37,7 @@ export 'src/models/feature_request.dart';
 export 'src/models/paginated_response.dart';
 export 'src/models/update_request_dto.dart';
 export 'src/models/project_config.dart';
+export 'src/models/review_links_config.dart';
 export 'src/models/comment.dart';
 export 'src/ui/featurama_screen.dart';
 export 'src/ui/strings/featurama_strings.dart';
